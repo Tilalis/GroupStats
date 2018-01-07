@@ -17,7 +17,7 @@ class Group:
     
     def _get(self, count: int, get_items: callable):
         items, offset = True, 0
-        while items:
+        while items or offset <= 1100:
             items = get_items(
                 offset=offset,
                 count=count
