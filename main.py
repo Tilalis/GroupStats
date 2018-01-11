@@ -1,35 +1,70 @@
 import json
+import random
 import pprint
+import logging
 
-from flask import Flask
+from app import *
 from utils import statistics
-from logging import getLogger
+from utils.executor import Executor
 
-logger = getLogger(__name__)
-app = Flask(__name__)
+executor = Executor(max_workers=3)
+
+def json_responce(obj, code=200):
+    return (
+        json.dumps(obj, indent=4, ensure_ascii=False).encode("UTF-8"), 
+        code, {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+    )
 
 @app.route('/')
-def index():
-    return """
-    <html>
-    <head>
-        <title>These Are Not the Droids You Are Looking For</title>
-    </head>
-    <body>
-        <img src="http://i0.kym-cdn.com/entries/icons/facebook/000/018/682/obi-wan.jpg"></img>
-    </body>
-    </html>
-    """
+def index(): 
+    image_urls = app.config['THESE_ARE_NOT_THE_DROIDS']
+    return render_template(
+        'index.html', 
+        image_url=random.choice(image_urls)
+    )
 
 @app.route('/api/<group_id>')
 def api(group_id):
-    try:
-        stats = statistics.build(group_id)
-    except Exception as e:
-        logger.info("Exception: {}".format(str(e)))
-        return '{"error": "Probably there is no such group"}'
+    future = executor.future(group_id)
+    if not future:
+        executor.submit(group_id, statistics.build, group_id)
+        return json_responce({
+            "message": ("Got it. "
+                       "Processing data. "
+                       "You can get back in couple of minutes for result")
+        })
     
-    return json.dumps(stats, indent=4, ensure_ascii=False).encode("UTF-8"), 200, {'Content-Type': 'application/json; charset=utf-8'}
-        
+    if not future.done():
+        return json_responce({
+            "message": "Sorry, your result is not ready yet."
+        })
+    
+    try:
+        stats = future.result()
+        return json_responce(stats)
+    except Exception as exception:
+        return json_responce({
+            "message": "Sorry, some error occured.",
+            "error": str(exception)
+        })
+
+@app.route('/api/status')
+def status():
+    return json_responce(executor.status)
+
+@app.route('/api/clear/<group_id>')
+def clear(group_id):
+    try:
+        executor.clear(group_id)
+        return json_responce({
+            "message": "Success"
+        })
+    except KeyError:
+        return json_responce({
+            "message": "No such task. Nothing to clear"
+        })
+
 if __name__ == "__main__":
     app.run('0.0.0.0')
