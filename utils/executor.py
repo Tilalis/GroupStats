@@ -45,7 +45,7 @@ class Executor:
     def future(self, name, value=None):
         return self._futures.get(name, value)
     
-    def status(self, name, value=None):
+    def job_status(self, name, value=None):
         return self._statuses.get(name, value)
 
     @property

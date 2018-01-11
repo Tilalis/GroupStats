@@ -37,8 +37,10 @@ def api(group_id):
         })
     
     if not future.done():
+        status = executor.job_status(group_id)
         return json_responce({
-            "message": "Sorry, your result is not ready yet."
+            "message": "Sorry, your result is not ready yet.",
+            "status": status.copy() if status else {}
         })
     
     try:
