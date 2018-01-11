@@ -47,7 +47,7 @@ def api(group_id):
     except Exception as exception:
         return json_responce({
             "message": "Sorry, some error occured.",
-            "error": str(exception)
+            "error": "{}('{}')".format(type(exception).__name__, str(exception))
         })
 
 @app.route('/api/status')

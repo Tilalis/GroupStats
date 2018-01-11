@@ -24,8 +24,8 @@ def build(group_id, *, status={}):
     females = 0
     cities = []
     for index, item in enumerate(members, start=1):
-        males = males + int(item["sex"] == 1)
-        females = females + int(item["sex"] == 2)
+        females = females + int(item["sex"] == 1)
+        males = males + int(item["sex"] == 2)
         cities.append(
             item["city"]["title"] if item.get("city", None) else "Unknown"
         )
@@ -38,9 +38,9 @@ def build(group_id, *, status={}):
     views = 0
     reposts = 0
     for index, item in enumerate(posts, start=1):
-        likes = likes + item["likes"]["count"]
-        views = views + item["views"]["count"]
-        reposts = reposts + item["reposts"]["count"]
+        likes = likes + item.get("likes", {}).get("count", 0)
+        views = views + item.get("views", {}).get("count", 0)
+        reposts = reposts + item.get("reposts", {}).get("count", 0)
 
         with _LOCK:
             status["posts"] = index / post_number
@@ -52,7 +52,7 @@ def build(group_id, *, status={}):
             "count": members_count,
             "cities": {
                 city: cities.count(city) 
-                for city in set(cities)
+                for city in set(cities) if cities.count(city) > 50
             },
             "sex": {
                 "unknown": (members_count - males - females) / members_count * 100,
