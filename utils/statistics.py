@@ -64,16 +64,16 @@ def build(group_id, *, status={}):
         "posts": {
             "count": posts_count,
             "avg": {
-                "likes": likes / posts_count,
-                "views": views / posts_count,
-                "reposts": reposts / posts_count
+                "likes": likes / post_number,
+                "views": views / post_number,
+                "reposts": reposts / post_number
             }
         },
     
         "conversion": {
-            "likes": (likes / posts_count) / members_count * 100,
-            "views": (views / posts_count) / members_count * 100,
-            "reposts": (reposts / posts_count) / members_count * 100
+            "likes": (likes / post_number) / members_count * 100,
+            "views": (views / post_number) / members_count * 100,
+            "reposts": (reposts / post_number) / members_count * 100
         }
     }
     
