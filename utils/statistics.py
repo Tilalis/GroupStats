@@ -1,43 +1,49 @@
 from .group import Group
 from pprint import pprint as pretify
 
-from functools import reduce
+from multiprocessing import Value, Lock
 
 _TOKEN = "fdc75be5fdc75be5fd75206256fd9e9466ffdc7fdc75be5a56da843614668f3d7775d73"
+_LOCK = Lock()
 
-
-def build(group_id):
+def build(group_id, *, status={}):
+    max_posts = 2000
     group = Group(
         group_id=group_id, 
-        access_token=_TOKEN
+        access_token=_TOKEN,
+        max_posts = 2000
     )
     
-    members_count = len(group.members)
-    posts_count = len(group.posts)
+    members_count, members = group.members()
+    posts_count, posts = group.posts()
+    
+    post_number = min(posts_count, max_posts)
+    count = members_count + max_posts
 
-    members = reduce(lambda acc, item: {
-        "sex": {
-            "males": acc["sex"]["males"] + int(item["sex"] == 1),
-            "females": acc["sex"]["females"] + int(item["sex"] == 2)
-        },
-        "cities": acc["cities"] + [item["city"]["title"] if item.get("city", None) else "Unknown"]
-    }, group.members, {
-        "sex": {
-            "males": 0,
-            "females": 0
-        },
-        "cities": []
-    })
+    males = 0
+    females = 0
+    cities = []
+    for index, item in enumerate(members, start=1):
+        females = females + int(item["sex"] == 1)
+        males = males + int(item["sex"] == 2)
+        cities.append(
+            item["city"]["title"] if item.get("city", None) else "Unknown"
+        )
+        
+        with _LOCK:
+            status["members"] = index / members_count
+        
 
-    posts = reduce(lambda acc, item: {
-        "likes": acc["likes"] + item["likes"]["count"],
-        "views": acc["views"] + item["views"]["count"],
-        "reposts": acc["reposts"] + item["reposts"]["count"],
-    }, group.posts, {
-        "likes": 0,
-        "views": 0,
-        "reposts": 0
-    })
+    likes = 0
+    views = 0
+    reposts = 0
+    for index, item in enumerate(posts, start=1):
+        likes = likes + item.get("likes", {}).get("count", 0)
+        views = views + item.get("views", {}).get("count", 0)
+        reposts = reposts + item.get("reposts", {}).get("count", 0)
+
+        with _LOCK:
+            status["posts"] = index / post_number
 
     stats = {
         "id": group.owner_id,
@@ -45,29 +51,29 @@ def build(group_id):
         "members": {
             "count": members_count,
             "cities": {
-                city: members["cities"].count(city) 
-                for city in set(members["cities"]) if members["cities"].count(city) > 100
+                city: cities.count(city) 
+                for city in set(cities) if cities.count(city) > 50
             },
             "sex": {
-                "unknown": (members_count - members["sex"]["males"] - members["sex"]["females"]) / members_count * 100,
-                "males": members["sex"]["males"] / members_count * 100,
-                "females": members["sex"]["females"] / members_count * 100,
+                "unknown": (members_count - males - females) / members_count * 100,
+                "males": males / members_count * 100,
+                "females": females / members_count * 100,
             }
         }, 
     
         "posts": {
             "count": posts_count,
             "avg": {
-                "likes": posts["likes"] / posts_count,
-                "views": posts["views"] / posts_count,
-                "reposts": posts["reposts"] / posts_count
+                "likes": likes / post_number,
+                "views": views / post_number,
+                "reposts": reposts / post_number
             }
         },
     
         "conversion": {
-            "likes": (posts["likes"] / posts_count) / members_count * 100,
-            "views": (posts["views"] / posts_count) / members_count * 100,
-            "reposts": (posts["reposts"] / posts_count) / members_count * 100
+            "likes": (likes / post_number) / members_count * 100,
+            "views": (views / post_number) / members_count * 100,
+            "reposts": (reposts / post_number) / members_count * 100
         }
     }
     
